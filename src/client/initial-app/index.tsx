@@ -10,6 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * MODIFIED FILE NOTICE (Apache License 2.0, section 4(b)): this file was
+ * changed on 2026-10-23 for the Tofu gallery copy (github.com/tofu-gallery/squoosh,
+ * branch `tofu`). The Google Analytics setup was removed: this copy loads no
+ * analytics script and sends no pageview or event data. See TOFU.md.
+ */
 import { h, render } from 'preact';
 import App from './App';
 
@@ -22,25 +28,6 @@ async function main() {
 
 main();
 
-// Analytics
-{
-  // Determine the current display mode.
-  const displayMode =
-    navigator.standalone ||
-    window.matchMedia('(display-mode: standalone)').matches
-      ? 'standalone'
-      : 'browser';
-
-  // Setup analytics
-  window.ga = window.ga || ((...args) => (ga.q = ga.q || []).push(args));
-  ga('create', 'UA-128752250-1', 'auto');
-  ga('set', 'transport', 'beacon');
-  ga('set', 'dimension1', displayMode);
-  ga('send', 'pageview', '/index.html', { title: 'Squoosh' });
-  // Load the GA script without keeping the browser spinner going.
-  addEventListener('load', () => {
-    const script = document.createElement('script');
-    script.src = 'https://www.google-analytics.com/analytics.js';
-    document.head.appendChild(script);
-  });
-}
+// Analytics: removed in this copy. Other modules still call `ga(...)`; this
+// no-op keeps those calls harmless without queueing, loading or sending anything.
+window.ga = Object.assign(() => {}, { q: [] as any[] });
