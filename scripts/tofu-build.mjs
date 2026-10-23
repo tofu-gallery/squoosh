@@ -6,8 +6,9 @@
  * It builds the app with upstream's own `npm run build` (Rollup, output in
  * build/), then copies the finished static site into site/, which the `tofu`
  * branch commits so a copy can be served as plain static files with no build
- * step. It also copies the licence files into site/licenses/ and fails if a
- * known analytics or tracking endpoint is found in the published files.
+ * step. It leaves out upstream's `_headers` and `_redirects` (see below). It
+ * also copies the licence files into site/licenses/ and fails if a known
+ * analytics or tracking endpoint is found in the published files.
  *
  * Usage, from the repository root after `npm ci`:
  *   node scripts/tofu-build.mjs              build, then package site/
@@ -57,6 +58,15 @@ if (!existsSync(join(buildDir, 'index.html'))) {
 
 rmSync(siteDir, { recursive: true, force: true });
 cpSync(buildDir, siteDir, { recursive: true });
+
+// Upstream's build also writes `_headers` (COOP/COEP and no-cache) and
+// `_redirects` (/editor to /). Tofu's Free static plan refuses a whole site
+// that contains either file, so they are not published. Without them the page
+// is not cross-origin isolated and Squoosh uses its single-threaded codecs by
+// itself, and its service worker performs the /editor redirect.
+for (const name of ['_headers', '_redirects']) {
+  rmSync(join(siteDir, name), { force: true });
+}
 
 // Licences travel with every published copy: upstream's Apache-2.0 LICENSE
 // (byte-identical) and the licence files upstream ships for its codecs.
