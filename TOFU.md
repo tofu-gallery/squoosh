@@ -32,7 +32,7 @@ The Squoosh name, logo, favicon, colours, web app manifest, screenshots, demo im
 
 ## Size
 
-The pinned tree has about 517 files, about 67 MB unpacked and about 35 MB as a gzip archive (`git archive`). That is within the importer's limits (50 MB compressed, 20,000 files, 250 MB unpacked), so nothing was removed. `site/` itself is 87 files and 24.9 MB; the largest file is a 2.9 MB demo image.
+The pinned tree has 515 files, about 69 MB unpacked and about 36 MB as a gzip archive (`git archive`); the zip GitHub builds for the tag (`legacy.zip`), which is what the importer downloads, is about 36.5 MB. That is within the importer's limits (50 MB compressed, 20,000 files, 250 MB unpacked), so nothing was removed. `site/` itself is 85 files and 26.1 MB; the largest file is a 2.9 MB demo image. (MB here is 1,000,000 bytes.)
 
 ## Upstream and licence
 
@@ -66,6 +66,8 @@ Two things to know when regenerating `site/`:
 
 ## Verification on 2026-10-23
 
+### First pin, `pin/2026-10-23` (still with `_headers` and `_redirects`)
+
 On macOS with Node 22.22.3 and npm 10.9.8:
 
 - `npm ci --no-audit --no-fund` installed 824 packages from the upstream lockfile.
@@ -73,6 +75,15 @@ On macOS with Node 22.22.3 and npm 10.9.8:
 - With `python3 -I -m http.server` serving `site/`, `curl` on `/` returned `HTTP 200` (`text/html`). All 67 `/c/…` files referenced by `index.html`, the JavaScript chunks and the service worker returned 200, as did every one of the 72 files in `site/c/`; `.wasm` was served as `application/wasm`. `/manifest.json`, `/serviceworker.js` and `/licenses/README.txt` also returned 200.
 - A headless Chromium (Playwright) loaded the page, clicked the "SVG icon" demo, and got a downloadable result from MozJPEG, AVIF, WebP and OxiPNG in turn. There were no console errors, page errors or failed requests, and no request left the local origin. `window.ga` was a no-op with an empty queue, and no analytics script tag existed. The page was not cross-origin isolated, so the single-threaded codecs ran.
 - The same check, with the site served by upstream's `serve` and its `serve.json` (the same COOP/COEP headers as `site/_headers`), passed with `crossOriginIsolated: true`, which is the multi-threaded path.
-- A second clean build reproduced `site/` except for the hash-renamed OxiPNG worker chunks described above. The committed `site/` is the build that passed the browser checks.
+- A second clean build reproduced `site/` except for the hash-renamed OxiPNG worker chunks described above. The committed `site/` was the build that passed the browser checks.
+
+### Second pin, `pin/2026-10-23.1` (`_headers` and `_redirects` removed)
+
+- **Build script.** With the first pin's `site/` (without `licenses/`) copied to `build/`, so that upstream's `_headers` and `_redirects` were in the build output, `node scripts/tofu-build.mjs --skip-build` reported `site/ is ready (85 files, index.html present, no tracking endpoints found)` and rewrote `site/` exactly as committed (no difference, nothing untracked). Rollup was not run again, so this `site/` is the first pin's build minus those two files.
+- **Tofu's static-lane check.** Tofu's own import check, run on this repository's `tofu` branch with `site/` as the root, reported 85 files, all published, and a finished static site. Run on the first pin, it refused the two files removed here as a type the lane does not serve.
+- **Safety check.** It still blocks on `obfuscated-code`: 17 findings, all of one shape, `Function("return this")()` in the minified Emscripten codec loaders in `site/c/` (`avif_*`, `jxl_*`, `webp_*`, `wp2_*` and the features worker, which bundles five of them). That call is Emscripten's `emval_get_global()`, a fallback that only runs where `globalThis` is missing. It is a known false positive of Tofu's rule for minified third-party code, so the loaders are left exactly as built. No other finding is reported.
+- **Import.** A simulated GitHub import of the `tofu` branch kept all 85 files and dropped none.
+- **HTTP.** With `python3 -I -m http.server` serving a copy of `site/`, all 85 files returned 200 and `.wasm` was `application/wasm`. `/_headers` and `/_redirects` returned 404, and so did `/editor`, which only the service worker redirects.
+- **Browser.** A Chrome-based browser loaded the page ("Ready to work offline" appeared), opened the "SVG icon" demo and encoded it with MozJPEG, AVIF, WebP, OxiPNG, JPEG XL and WebP v2 in turn. Each gave a download with the right file signature (18.8, 8.4, 14.2, 29.3, 20.3 and 9.8 kB). There were no console errors, every request went to the local origin and none failed. `crossOriginIsolated` was `false`, so the single-threaded codecs ran. With the service worker installed, `/editor` went to `/`.
 
 No app was deployed and nothing was published other than this fork.
